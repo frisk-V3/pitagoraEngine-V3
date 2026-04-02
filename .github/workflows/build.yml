@@ -6,15 +6,26 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      
+        with:
+          submodules: recursive # サブモジュールがあれば取得
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      - name: NuGet Restore
+        run: nuget restore *.sln # 依存ライブラリの復元
+
       - name: Build Release
-        run: msbuild YourProject.sln /p:Configuration=Release /p:Platform=x64
+        # *.sln でリポジトリ内のソリューションを自動検出し、Releaseビルドを実行
+        run: msbuild *.sln /p:Configuration=Release /p:Platform=x64 /p:AppxBundle=Never
 
       - name: Upload Artifact
+        # ビルドされたexe一式を「Pythagoras-EXE」という名前でアップロード
         uses: actions/upload-artifact@v4
         with:
-          name: Pythagoras-Game
-          path: App/  # Siv3Dの標準出力先
+          name: Pythagoras-EXE
+          # Siv3Dの標準的な出力先である「App」フォルダをまるごと保存
+          path: |
+            App/
+            x64/Release/
+          if-no-files-found: warn
