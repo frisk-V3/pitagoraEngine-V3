@@ -1,36 +1,42 @@
-name: Manual-Build-PitagoraV3
+name: Build-PitagoraV3-Clean
 
-# 手動実行スイッチをオン！
 on:
-  workflow_dispatch:
+  workflow_dispatch: # 手動ボタン専用
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      - name: Restore Dependencies
+      # Siv3D専用のパッケージソースを一時的に追加（エラー NU1101 対策）
+      - name: Add Siv3D NuGet Source
+        run: dotnet nuget add source https://myget.org --name Siv3D
+
+      - name: Restore
         run: dotnet restore PitagoraEngineV3.csproj
 
-      - name: Publish (Single EXE)
-        # -p:PublishSingleFile=true でバラバラのDLLを1つのexeに合体させます
+      - name: Publish to External Folder
+        # ポイント：出力先をリポジトリ外の「../dist」に指定して push 事故を物理的に防ぐ
         run: |
           dotnet publish PitagoraEngineV3.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o ../dist
 
-      - name: Upload Artifact
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PitagoraEngineV3-Release-EXE
-          # ビルド結果が格納されるパスを指定
-          path: bin/Release/net8.0-windows/win-x64/publish/
+          name: PitagoraEngineV3-Fixed-EXE
+          path: ../dist/
+          # 保持期間を短くしてGitHubのストレージに優しく（任意）
+          retention-days: 7
