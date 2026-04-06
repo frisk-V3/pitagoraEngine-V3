@@ -1,4 +1,4 @@
-name: Robust-Fast-Build-PitagoraV3
+name: Final-Build-PitagoraV3
 
 on:
   workflow_dispatch:
@@ -15,23 +15,21 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
-
-      # エラー対策：ソースがあるか確認してから追加（または一度消して追加）
-      - name: Add Siv3D NuGet Source Safely
+      # 1. 汚れたソースリストを一度全消去
+      - name: Reset NuGet Sources
         run: |
-          dotnet nuget list source | findstr "Siv3D" > nul
-          if %errorlevel% neq 0 (
-            dotnet nuget add source https://myget.org --name Siv3D
-          )
+          dotnet nuget locals all --clear
+          dotnet nuget list source | find "http" && (for /f "tokens=2" %a in ('dotnet nuget list source ^| find "Enabled"') do dotnet nuget remove source %a) || echo "No sources to remove"
         shell: cmd
+        continue-on-error: true
 
+      # 2. 正しいURLだけを再登録
+      - name: Add Correct NuGet Sources
+        run: |
+          dotnet nuget add source https://nuget.org --name nuget.org
+          dotnet nuget add source https://myget.org --name Siv3D
+
+      # 3. ビルド実行（キャッシュなしで確実に通す）
       - name: Publish
         run: |
           dotnet publish PitagoraEngineV3.csproj `
@@ -41,8 +39,7 @@ jobs:
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -o ../dist `
-            -v m `
-            /m
+            -v n
 
       - name: Upload
         uses: actions/upload-artifact@v4
